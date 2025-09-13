@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import apiClient from '../API/ApiClient';
+import ConnectionTest from '../Components/ConnectionTest';
 
 // --- Mock Icons (for standalone use) ---
 const GoogleIcon = () => (
@@ -25,6 +26,7 @@ export default function LoginPage() {
         password: ''
     });
     const [error, setError] = useState(null);
+    const [loading, setLoading] = useState(false);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -33,20 +35,30 @@ export default function LoginPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError(null);
+        setLoading(true);
+        
         try {
+            console.log('Attempting login with:', formData);
             const response = await apiClient.post('/api/auth/jwt/create/', formData);
+            console.log('Login successful:', response.data);
             localStorage.setItem('access_token', response.data.access);
             localStorage.setItem('refresh_token', response.data.refresh);
             apiClient.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`;
             navigate('/dashboard');
         } catch (err) {
-            setError(err.response?.data || { message: 'An error occurred' });
+            console.error('Login error:', err);
+            console.error('Error response:', err.response);
+            setError(err.response?.data || { message: 'An error occurred during login' });
+        } finally {
+            setLoading(false);
         }
     };
 
   return (
     <div className="bg-white py-12 sm:py-20">
-      <div className="mx-auto max-w-md p-8 border border-gray-200 rounded-2xl shadow-sm">
+      <div className="mx-auto max-w-4xl">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div className="p-8 border border-gray-200 rounded-2xl shadow-sm">
         <div className="text-center">
             <h1 className="text-3xl font-bold tracking-tight text-gray-900 sm:text-4xl">Welcome Back</h1>
             <p className="mt-2 text-gray-600">Sign in to continue to your account.</p>
@@ -54,7 +66,16 @@ export default function LoginPage() {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
             <div>
                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email address</label>
-                <input id="email" name="email" type="email" autoComplete="email" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" onChange={handleChange} />
+                <input 
+                    id="email" 
+                    name="email" 
+                    type="email" 
+                    autoComplete="email" 
+                    required 
+                    value={formData.email}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" 
+                    onChange={handleChange} 
+                />
             </div>
             <div>
                 <div className="flex items-center justify-between">
@@ -63,7 +84,16 @@ export default function LoginPage() {
                         <a href="#" className="font-medium text-indigo-600 hover:text-indigo-500">Forgot your password?</a>
                     </div>
                 </div>
-                <input id="password" name="password" type="password" autoComplete="current-password" required className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" onChange={handleChange} />
+                <input 
+                    id="password" 
+                    name="password" 
+                    type="password" 
+                    autoComplete="current-password" 
+                    required 
+                    value={formData.password}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm" 
+                    onChange={handleChange} 
+                />
             </div>
             {error && (
                 <div className="p-4 bg-red-100 text-red-700 rounded-md">
@@ -73,8 +103,12 @@ export default function LoginPage() {
                 </div>
             )}
             <div>
-                <button type="submit" className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-                    Log In
+                <button 
+                    type="submit" 
+                    disabled={loading}
+                    className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                    {loading ? 'Logging in...' : 'Log In'}
                 </button>
             </div>
         </form>
@@ -110,6 +144,12 @@ export default function LoginPage() {
                 Sign up
             </Link>
         </p>
+          </div>
+          
+          <div className="flex items-center justify-center">
+            <ConnectionTest />
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import EmailResult, BulkVerificationRequest, CustomUser
+from .models import EmailResult, BulkVerificationRequest, CustomUser, APIKey
 
 class EmailResultSerializer(serializers.ModelSerializer):
     class Meta:
@@ -19,3 +19,9 @@ class UserSerializer(serializers.ModelSerializer):
         model = CustomUser
         fields = ['id', 'email', 'username', 'credits_remaining', 'first_name', 'last_name']
         read_only_fields = ['email', 'credits_remaining'] # Email and credits are not directly editable via profile
+
+class APIKeySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = APIKey
+        fields = ['id', 'name', 'prefix', 'created']
+        read_only_fields = ['prefix', 'created']

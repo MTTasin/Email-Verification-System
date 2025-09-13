@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import apiClient from '../API/ApiClient';
 
 // --- Mock Lucide Icons ---
 const LayoutDashboard = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>;
@@ -98,7 +99,7 @@ const DashboardLayout = () => {
     useEffect(() => {
         const fetchUser = async () => {
             try {
-                const response = await apiClient.get('/api/auth/users/me/');
+                const response = await apiClient.get('/api/user/profile/');
                 setUser(response.data);
             } catch (error) {
                 console.error("Failed to fetch user", error);

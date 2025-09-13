@@ -10,7 +10,7 @@ services:
   # Django Backend Service 🌐
   backend:
     build: ./backend
-    command: python manage.py runserver 0.0.0.0:8000
+    command: python manage.py runserver
     volumes:
       - ./backend:/code # Syncs your local code for development
     ports:

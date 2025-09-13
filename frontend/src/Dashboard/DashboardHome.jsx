@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
+import apiClient from '../API/ApiClient';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -26,12 +27,43 @@ const StatCard = ({ title, value, icon, color }) => {
 
 const DashboardHome = () => {
     const { user } = useOutletContext();
-    const recentJobs = []; // Placeholder for recent jobs
+    const [stats, setStats] = useState({
+        total_verifications: 0,
+        deliverable_count: 0,
+        undeliverable_count: 0,
+        risky_count: 0,
+        unknown_count: 0,
+        invalid_count: 0,
+        recent_bulk_jobs: []
+    });
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        fetchDashboardStats();
+    }, []);
+
+    const fetchDashboardStats = async () => {
+        try {
+            const response = await apiClient.get('/api/user/dashboard-stats/');
+            setStats(response.data);
+        } catch (error) {
+            console.error('Failed to fetch dashboard stats:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const chartData = {
-        labels: ['Deliverable', 'Undeliverable', 'Risky'],
+        labels: ['Deliverable', 'Undeliverable', 'Risky', 'Unknown', 'Invalid'],
         datasets: [{
-            data: [0, 0, 0], // Placeholder data
-            backgroundColor: ['#10B981', '#EF4444', '#F59E0B'],
+            data: [
+                stats.deliverable_count,
+                stats.undeliverable_count,
+                stats.risky_count,
+                stats.unknown_count,
+                stats.invalid_count
+            ],
+            backgroundColor: ['#10B981', '#EF4444', '#F59E0B', '#6B7280', '#DC2626'],
             borderColor: ['#ffffff'],
             borderWidth: 2,
         }],
@@ -61,9 +93,9 @@ const DashboardHome = () => {
 
             {/* Key Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                <StatCard title="Total Verifications" value="0" icon={<CheckCircle2 className="h-6 w-6 text-green-600"/>} color="bg-green-100"/>
-                <StatCard title="Credits Remaining" value={user.credits_remaining?.toLocaleString() || 0} icon={<Coins className="h-6 w-6 text-indigo-600"/>} color="bg-indigo-100"/>
-                <StatCard title="Avg. Processing Time" value="N/A" icon={<Clock className="h-6 w-6 text-yellow-600"/>} color="bg-yellow-100"/>
+                <StatCard title="Total Verifications" value={stats.total_verifications.toLocaleString()} icon={<CheckCircle2 className="h-6 w-6 text-green-600"/>} color="bg-green-100"/>
+                <StatCard title="Credits Remaining" value={stats.credits_remaining?.toLocaleString() || 0} icon={<Coins className="h-6 w-6 text-indigo-600"/>} color="bg-indigo-100"/>
+                <StatCard title="Deliverable Rate" value={stats.total_verifications > 0 ? `${Math.round((stats.deliverable_count / stats.total_verifications) * 100)}%` : 'N/A'} icon={<Clock className="h-6 w-6 text-yellow-600"/>} color="bg-yellow-100"/>
             </div>
 
             {/* Main Content Grid */}
@@ -73,13 +105,20 @@ const DashboardHome = () => {
                 <div className="xl:col-span-3 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                     <h2 className="text-xl font-semibold text-gray-800 mb-4">Recent Bulk Jobs</h2>
                     <div className="space-y-4">
-                        {recentJobs.length > 0 ? recentJobs.map((job, index) => (
+                        {loading ? (
+                            <p className="text-gray-500">Loading...</p>
+                        ) : stats.recent_bulk_jobs.length > 0 ? stats.recent_bulk_jobs.map((job, index) => (
                             <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
                                 <div className="mb-2 sm:mb-0">
-                                    <p className="font-medium text-gray-800">{job.name}</p>
-                                    <p className="text-sm text-gray-500">{job.count}</p>
+                                    <p className="font-medium text-gray-800">{job.file_name}</p>
+                                    <p className="text-sm text-gray-500">{job.total_emails} emails • {new Date(job.upload_timestamp).toLocaleDateString()}</p>
                                 </div>
-                                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${job.statusColor}`}>{job.status}</span>
+                                <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                                    job.status === 'COMPLETE' ? 'bg-green-100 text-green-700' :
+                                    job.status === 'PROCESSING' ? 'bg-yellow-100 text-yellow-700' :
+                                    job.status === 'PENDING' ? 'bg-blue-100 text-blue-700' :
+                                    'bg-red-100 text-red-700'
+                                }`}>{job.status}</span>
                             </div>
                         )) : <p className="text-gray-500">No recent bulk jobs.</p>}
                     </div>
