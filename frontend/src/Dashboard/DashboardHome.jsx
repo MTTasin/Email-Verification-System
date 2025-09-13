@@ -1,4 +1,5 @@
 import React from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
 
@@ -24,16 +25,12 @@ const StatCard = ({ title, value, icon, color }) => {
 };
 
 const DashboardHome = () => {
-    const user = { name: 'Alex' }; // Mock user
-    const recentJobs = [
-        { name: 'marketing_leads_q3.csv', count: '10,000 emails', status: 'Completed', statusColor: 'bg-green-100 text-green-700' },
-        { name: 'sales_contacts.txt', count: '2,500 emails', status: 'Completed', statusColor: 'bg-green-100 text-green-700' },
-        { name: 'newsletter_signup.csv', count: '500 emails', status: 'Processing', statusColor: 'bg-blue-100 text-blue-700' },
-    ];
+    const { user } = useOutletContext();
+    const recentJobs = []; // Placeholder for recent jobs
     const chartData = {
         labels: ['Deliverable', 'Undeliverable', 'Risky'],
         datasets: [{
-            data: [75, 15, 10],
+            data: [0, 0, 0], // Placeholder data
             backgroundColor: ['#10B981', '#EF4444', '#F59E0B'],
             borderColor: ['#ffffff'],
             borderWidth: 2,
@@ -58,15 +55,15 @@ const DashboardHome = () => {
     return (
         <div className="space-y-6 md:space-y-8">
             <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Welcome back, {user.name}!</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Welcome back, {user.first_name}!</h1>
                 <p className="text-gray-500 mt-1 md:mt-2">Here's a summary of your account activity.</p>
             </div>
 
             {/* Key Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                <StatCard title="Total Verifications" value="12,890" icon={<CheckCircle2 className="h-6 w-6 text-green-600"/>} color="bg-green-100"/>
-                <StatCard title="Credits Remaining" value="4,350" icon={<Coins className="h-6 w-6 text-indigo-600"/>} color="bg-indigo-100"/>
-                <StatCard title="Avg. Processing Time" value="2m 15s" icon={<Clock className="h-6 w-6 text-yellow-600"/>} color="bg-yellow-100"/>
+                <StatCard title="Total Verifications" value="0" icon={<CheckCircle2 className="h-6 w-6 text-green-600"/>} color="bg-green-100"/>
+                <StatCard title="Credits Remaining" value={user.credits_remaining?.toLocaleString() || 0} icon={<Coins className="h-6 w-6 text-indigo-600"/>} color="bg-indigo-100"/>
+                <StatCard title="Avg. Processing Time" value="N/A" icon={<Clock className="h-6 w-6 text-yellow-600"/>} color="bg-yellow-100"/>
             </div>
 
             {/* Main Content Grid */}
@@ -76,7 +73,7 @@ const DashboardHome = () => {
                 <div className="xl:col-span-3 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                     <h2 className="text-xl font-semibold text-gray-800 mb-4">Recent Bulk Jobs</h2>
                     <div className="space-y-4">
-                        {recentJobs.map((job, index) => (
+                        {recentJobs.length > 0 ? recentJobs.map((job, index) => (
                             <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
                                 <div className="mb-2 sm:mb-0">
                                     <p className="font-medium text-gray-800">{job.name}</p>
@@ -84,7 +81,7 @@ const DashboardHome = () => {
                                 </div>
                                 <span className={`px-3 py-1 text-xs font-semibold rounded-full ${job.statusColor}`}>{job.status}</span>
                             </div>
-                        ))}
+                        )) : <p className="text-gray-500">No recent bulk jobs.</p>}
                     </div>
                 </div>
 

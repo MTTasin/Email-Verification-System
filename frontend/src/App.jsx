@@ -10,6 +10,7 @@ import BulkVerify from "./Dashboard/BulkVerify";
 import ApiKeys from "./Dashboard/ApiKeys";
 import Billing from "./Dashboard/Billing";
 import Settings from "./Dashboard/Settings";
+import ProtectedRoute from "./Components/ProtectedRoute";
 
 function App() {
   return (
@@ -20,14 +21,15 @@ function App() {
           <Route path="/signup" element={<SignUpPage />} />
           <Route path="/login" element={<LoginPage />} />
         </Route>
-        <Route element={<DashboardLayout />}>
-          <Route path="/dashboard" element={<DashboardPage />} />
-          <Route path="/dashboard/verify-single" element={<SingleVerify />} />
-          <Route path="/dashboard/verify-bulk" element={<BulkVerify />} />
-          <Route path="/dashboard/api-keys" element={<ApiKeys />} />
-          <Route path="/dashboard/billing" element={<Billing />} />
-          <Route path="/dashboard/settings" element={<Settings />} />
-
+        <Route element={<ProtectedRoute />}>
+          <Route element={<DashboardLayout />}>
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/dashboard/verify-single" element={<SingleVerify />} />
+            <Route path="/dashboard/verify-bulk" element={<BulkVerify />} />
+            <Route path="/dashboard/api-keys" element={<ApiKeys />} />
+            <Route path="/dashboard/billing" element={<Billing />} />
+            <Route path="/dashboard/settings" element={<Settings />} />
+          </Route>
         </Route>
       </Routes>
     </Router>

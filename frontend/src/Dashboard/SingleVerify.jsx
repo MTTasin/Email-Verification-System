@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import apiClient from '../API/ApiClient';
 
 // --- Mock Lucide Icons ---
 const CheckCircle = (props) => (
@@ -16,69 +17,54 @@ const SingleVerify = () => {
     const [email, setEmail] = useState('');
     const [result, setResult] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [error, setError] = useState(null);
 
-    const handleVerify = (e) => {
+    const pollForResult = async (taskId) => {
+        try {
+            const response = await apiClient.get(`/api/results/single/${taskId}/`);
+            if (response.data.status === 'PENDING') {
+                setTimeout(() => pollForResult(taskId), 2000);
+            } else {
+                setResult(response.data);
+                setIsLoading(false);
+            }
+        } catch (err) {
+            setError(err.response?.data || { message: 'An error occurred while fetching results.' });
+            setIsLoading(false);
+        }
+    };
+
+    const handleVerify = async (e) => {
         e.preventDefault();
         if (!email) return;
         setIsLoading(true);
         setResult(null);
+        setError(null);
 
-        // Mock API call to simulate verification
-        setTimeout(() => {
-            const statuses = [
-                { 
-                    status: 'Deliverable', 
-                    color: 'green',
-                    icon: <CheckCircle className="h-6 w-6 text-green-500"/>,
-                    reason: "This email address is valid and can receive emails.",
-                    logs: [
-                        "220 mx.google.com ESMTP ...",
-                        "EHLO a.b.c.d",
-                        "250-mx.google.com at your service...",
-                        "MAIL FROM:<test@example.com>",
-                        "250 2.1.0 OK ...",
-                        "RCPT TO:<" + email + ">",
-                        "250 2.1.5 OK ...",
-                        "QUIT",
-                        "221 2.0.0 closing connection ..."
-                    ]
-                },
-                { 
-                    status: 'Undeliverable', 
-                    color: 'red',
-                    icon: <XCircle className="h-6 w-6 text-red-500"/>,
-                    reason: "The mailbox does not exist or the domain is invalid.",
-                     logs: [
-                        "220 mx.google.com ESMTP ...",
-                        "EHLO a.b.c.d",
-                        "250-mx.google.com at your service...",
-                        "MAIL FROM:<test@example.com>",
-                        "250 2.1.0 OK ...",
-                        "RCPT TO:<" + email + ">",
-                        "550 5.1.1 The email account that you tried to reach does not exist...",
-                        "QUIT"
-                    ]
-                },
-                { 
-                    status: 'Risky', 
-                    color: 'yellow',
-                    icon: <AlertTriangle className="h-6 w-6 text-yellow-500"/>,
-                    reason: "This might be a temporary or accept-all address.",
-                    logs: [
-                        "220 serv.com ESMTP ...",
-                        "EHLO a.b.c.d",
-                        "250-serv.com at your service...",
-                        "MAIL FROM:<test@example.com>",
-                        "250 2.1.0 OK ...",
-                        "RCPT TO:<" + email + ">",
-                        "250 2.1.5 OK (Accept All)...",
-                    ]
-                },
-            ];
-            setResult(statuses[Math.floor(Math.random() * statuses.length)]);
+        try {
+            const response = await apiClient.post('/api/verify/single/', { email });
+            pollForResult(response.data.task_id);
+        } catch (err) {
+            setError(err.response?.data || { message: 'An error occurred' });
             setIsLoading(false);
-        }, 1500);
+        }
     };
+
+    const getResultAppearance = () => {
+        if (!result) return {};
+        switch (result.status) {
+            case 'DELIVERABLE':
+                return { color: 'green', icon: <CheckCircle className="h-6 w-6 text-green-500"/>, reason: "This email address is valid and can receive emails." };
+            case 'UNDELIVERABLE':
+                return { color: 'red', icon: <XCircle className="h-6 w-6 text-red-500"/>, reason: "The mailbox does not exist or the domain is invalid." };
+            case 'RISKY':
+                return { color: 'yellow', icon: <AlertTriangle className="h-6 w-6 text-yellow-500"/>, reason: "This might be a temporary or accept-all address." };
+            default:
+                return { color: 'gray', icon: <AlertTriangle className="h-6 w-6 text-gray-500"/>, reason: "The email address is of unknown status." };
+        }
+    };
+
+    const { color, icon, reason } = getResultAppearance();
 
     return (
         <div className="p-6 md:p-8 max-w-4xl mx-auto">
@@ -108,24 +94,33 @@ const SingleVerify = () => {
                 </div>
             )}
 
+            {error && (
+                <div className="mt-8 p-4 bg-red-100 text-red-700 rounded-md">
+                    {Object.entries(error).map(([key, value]) => (
+                        <p key={key}>{`${key}: ${value}`}</p>
+                    ))}
+                </div>
+            )}
+
             {result && (
                 <div className="mt-8 bg-white rounded-lg border border-gray-200 shadow-sm">
                     <div className="p-6 border-b border-gray-200">
                         <h2 className="text-xl font-semibold text-gray-800">Verification Result</h2>
                         <div className="flex items-center gap-3 mt-4">
-                            {result.icon}
+                            {icon}
                             <div>
-                                <p className={`text-2xl font-bold text-${result.color}-600`}>{result.status}</p>
-                                <p className="text-gray-600">{result.reason}</p>
+                                <p className={`text-2xl font-bold text-${color}-600`}>{result.status}</p>
+                                <p className="text-gray-600">{reason}</p>
                             </div>
                         </div>
                     </div>
                     <div className="p-6">
-                        <h3 className="text-lg font-semibold text-gray-700 mb-3">SMTP Logs</h3>
-                        <div className="bg-gray-900 text-white font-mono text-sm rounded-lg p-4 overflow-x-auto">
-                            {result.logs.map((log, index) => (
-                                <p key={index} className="whitespace-pre">{log}</p>
-                            ))}
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3">Details</h3>
+                        <div className="grid grid-cols-2 gap-4 text-sm">
+                            <p><strong>Syntax Valid:</strong> {result.syntax_valid ? 'Yes' : 'No'}</p>
+                            <p><strong>MX Found:</strong> {result.mx_found ? 'Yes' : 'No'}</p>
+                            <p><strong>SMTP Check:</strong> {result.smtp_check ? 'Yes' : 'No'}</p>
+                            <p><strong>Is Disposable:</strong> {result.is_disposable ? 'Yes' : 'No'}</p>
                         </div>
                     </div>
                 </div>

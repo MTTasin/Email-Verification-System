@@ -2,7 +2,6 @@ import axios from 'axios';
 
 // Create a reusable Axios instance
 const apiClient = axios.create({
-  baseURL: 'https://api.veriflow.com/v1', // Replace with your actual backend URL
   headers: {
     'Content-Type': 'application/json',
   },

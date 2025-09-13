@@ -46,7 +46,7 @@ const Sidebar = ({ user, isOpen }) => {
                 </nav>
                 <div className="mt-auto p-4 bg-gray-50 rounded-lg">
                     <p className="text-sm font-medium text-gray-700">Credits Remaining</p>
-                    <p className="text-2xl font-bold text-indigo-600 mt-1">{user.credits.toLocaleString()}</p>
+                    <p className="text-2xl font-bold text-indigo-600 mt-1">{user.credits_remaining?.toLocaleString() || 0}</p>
                 </div>
             </div>
         </aside>
@@ -55,6 +55,15 @@ const Sidebar = ({ user, isOpen }) => {
 
 const TopBar = ({ user, onMenuClick }) => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const navigate = useNavigate();
+
+    const handleLogout = () => {
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+        delete apiClient.defaults.headers.common['Authorization'];
+        navigate('/login');
+    };
+
     return (
         <header className="bg-white/80 backdrop-blur-md border-b border-gray-200 sticky top-0 z-30">
             <div className="container mx-auto px-6 h-16 flex items-center justify-between">
@@ -65,13 +74,13 @@ const TopBar = ({ user, onMenuClick }) => {
                 <div className="relative">
                     <button onClick={() => setDropdownOpen(!dropdownOpen)} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100">
                         <UserCircle className="h-7 w-7 text-gray-600"/>
-                        <span className="hidden sm:inline font-medium text-gray-700">{user.name}</span>
+                        <span className="hidden sm:inline font-medium text-gray-700">{user.first_name}</span>
                         <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}/>
                     </button>
                     {dropdownOpen && (
                         <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10 ring-1 ring-black ring-opacity-5">
                             <Link to="/dashboard/settings" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">My Account</Link>
-                            <Link to="/" className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</Link>
+                            <button onClick={handleLogout} className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</button>
                         </div>
                     )}
                 </div>
@@ -82,18 +91,32 @@ const TopBar = ({ user, onMenuClick }) => {
 
 const DashboardLayout = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [user, setUser] = useState(null);
     const location = useLocation();
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const response = await apiClient.get('/api/auth/users/me/');
+                setUser(response.data);
+            } catch (error) {
+                console.error("Failed to fetch user", error);
+                navigate('/login');
+            }
+        };
+
+        fetchUser();
+    }, [navigate]);
 
     useEffect(() => {
         // Close sidebar on navigation on mobile
         setSidebarOpen(false);
     }, [location.pathname]);
 
-    const user = {
-        name: 'Alex Doe',
-        email: 'alex.doe@example.com',
-        credits: 4350,
-    };
+    if (!user) {
+        return <div>Loading...</div>; // Or a proper loader
+    }
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -104,7 +127,7 @@ const DashboardLayout = () => {
             <div className="flex flex-col flex-1 md:ml-64">
                 <TopBar user={user} onMenuClick={() => setSidebarOpen(true)} />
                 <main className="flex-1 p-6 md:p-8 overflow-y-auto">
-                    <Outlet />
+                    <Outlet context={{ user }} />
                 </main>
             </div>
         </div>
