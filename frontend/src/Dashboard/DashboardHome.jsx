@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
 import { Doughnut } from 'react-chartjs-2';
 import { Chart as ChartJS, ArcElement, Tooltip, Legend } from 'chart.js';
-import apiClient from '../API/ApiClient';
+import { fetchDashboardStats } from '../redux/dashboardSlice';
 
 ChartJS.register(ArcElement, Tooltip, Legend);
 
@@ -26,42 +26,25 @@ const StatCard = ({ title, value, icon, color }) => {
 };
 
 const DashboardHome = () => {
-    const { user } = useOutletContext();
-    const [stats, setStats] = useState({
-        total_verifications: 0,
-        deliverable_count: 0,
-        undeliverable_count: 0,
-        risky_count: 0,
-        unknown_count: 0,
-        invalid_count: 0,
-        recent_bulk_jobs: []
-    });
-    const [loading, setLoading] = useState(true);
+    const dispatch = useDispatch();
+    const { user } = useSelector((state) => state.auth);
+    const { stats, status, error } = useSelector((state) => state.dashboard);
 
     useEffect(() => {
-        fetchDashboardStats();
-    }, []);
-
-    const fetchDashboardStats = async () => {
-        try {
-            const response = await apiClient.get('/api/user/dashboard-stats/');
-            setStats(response.data);
-        } catch (error) {
-            console.error('Failed to fetch dashboard stats:', error);
-        } finally {
-            setLoading(false);
+        if (status === 'idle') {
+            dispatch(fetchDashboardStats());
         }
-    };
+    }, [status, dispatch]);
 
     const chartData = {
         labels: ['Deliverable', 'Undeliverable', 'Risky', 'Unknown', 'Invalid'],
         datasets: [{
             data: [
-                stats.deliverable_count,
-                stats.undeliverable_count,
-                stats.risky_count,
-                stats.unknown_count,
-                stats.invalid_count
+                stats?.deliverable_count || 0,
+                stats?.undeliverable_count || 0,
+                stats?.risky_count || 0,
+                stats?.unknown_count || 0,
+                stats?.invalid_count || 0
             ],
             backgroundColor: ['#10B981', '#EF4444', '#F59E0B', '#6B7280', '#DC2626'],
             borderColor: ['#ffffff'],
@@ -84,10 +67,18 @@ const DashboardHome = () => {
         cutout: '70%',
     };
 
+    if (status === 'loading' || status === 'idle') {
+        return <div>Loading dashboard...</div>;
+    }
+
+    if (status === 'failed') {
+        return <div>Error loading dashboard: {error.message}</div>;
+    }
+
     return (
         <div className="space-y-6 md:space-y-8">
             <div>
-                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Welcome back, {user.first_name}!</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-gray-800">Welcome back, {user?.first_name}!</h1>
                 <p className="text-gray-500 mt-1 md:mt-2">Here's a summary of your account activity.</p>
             </div>
 
@@ -105,9 +96,7 @@ const DashboardHome = () => {
                 <div className="xl:col-span-3 bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                     <h2 className="text-xl font-semibold text-gray-800 mb-4">Recent Bulk Jobs</h2>
                     <div className="space-y-4">
-                        {loading ? (
-                            <p className="text-gray-500">Loading...</p>
-                        ) : stats.recent_bulk_jobs.length > 0 ? stats.recent_bulk_jobs.map((job, index) => (
+                        {stats.recent_bulk_jobs.length > 0 ? stats.recent_bulk_jobs.map((job, index) => (
                             <div key={index} className="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors">
                                 <div className="mb-2 sm:mb-0">
                                     <p className="font-medium text-gray-800">{job.file_name}</p>

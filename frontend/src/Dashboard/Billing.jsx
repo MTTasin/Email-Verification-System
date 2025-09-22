@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchPlans, createCheckoutSession } from '../redux/billingSlice';
 import apiClient from '../API/ApiClient';
 
 // --- Mock Lucide Icons ---
@@ -12,9 +14,9 @@ const ExternalLink = (props) => <svg {...props} xmlns="http://www.w3.org/2000/sv
 const Download = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>;
 
 const Billing = () => {
-    const [currentPlan, setCurrentPlan] = useState('Free');
-    const [credits, setCredits] = useState(0);
-    const [plans, setPlans] = useState([]);
+    const dispatch = useDispatch();
+    const { user } = useSelector((state) => state.auth);
+    const { plans, status, error } = useSelector((state) => state.billing);
     const [showUpgradeModal, setShowUpgradeModal] = useState(false);
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [showCheckout, setShowCheckout] = useState(false);
@@ -28,28 +30,11 @@ const Billing = () => {
     const [billingHistory, setBillingHistory] = useState([]);
 
     useEffect(() => {
-        fetchUserData();
-        fetchPlans();
+        if (status === 'idle') {
+            dispatch(fetchPlans());
+        }
         fetchBillingHistory();
-    }, []);
-
-    const fetchUserData = async () => {
-        try {
-            const response = await apiClient.get('/api/user/profile/');
-            setCredits(response.data.credits_remaining);
-        } catch (error) {
-            console.error('Failed to fetch user data:', error);
-        }
-    };
-
-    const fetchPlans = async () => {
-        try {
-            const response = await apiClient.get('/api/billing/plans/');
-            setPlans(response.data);
-        } catch (error) {
-            console.error('Failed to fetch plans:', error);
-        }
-    };
+    }, [status, dispatch]);
 
     const fetchBillingHistory = async () => {
         // Mock billing history for now
@@ -69,25 +54,20 @@ const Billing = () => {
         if (!selectedPlan) return;
         
         setLoading(true);
-        try {
-            const response = await apiClient.post('/api/billing/create-checkout-session/', {
-                plan_id: selectedPlan.id
-            });
-            setCheckoutData(response.data);
+        const resultAction = await dispatch(createCheckoutSession(selectedPlan.id));
+        if (createCheckoutSession.fulfilled.match(resultAction)) {
+            setCheckoutData(resultAction.payload);
             setShowCheckout(true);
             setShowUpgradeModal(false);
-        } catch (error) {
-            console.error('Checkout failed:', error);
-        } finally {
-            setLoading(false);
         }
+        setLoading(false);
     };
 
     const handleMockPayment = async () => {
         setLoading(true);
         try {
             await apiClient.post('/api/billing/mock-payment/');
-            await fetchUserData();
+            // Ideally, you would refetch the user data here or update it via Redux
             setShowCheckout(false);
             setCheckoutData(null);
             setSelectedPlan(null);
@@ -139,10 +119,10 @@ const Billing = () => {
                     <h2 className="text-xl font-semibold text-gray-800 mb-4">Current Plan</h2>
                     <div className="bg-indigo-50 border border-indigo-200 p-6 rounded-lg flex flex-col sm:flex-row items-start sm:items-center justify-between">
                         <div>
-                            <p className="text-2xl font-bold text-indigo-800">{currentPlan}</p>
-                            <p className="text-gray-600 mt-1">{credits.toLocaleString()} credits remaining</p>
+                            <p className="text-2xl font-bold text-indigo-800">{user?.subscription_plan?.name || 'Free'}</p>
+                            <p className="text-gray-600 mt-1">{user?.credits_remaining.toLocaleString()} credits remaining</p>
                             <p className="text-sm text-gray-500 mt-4">
-                                {currentPlan === 'Free' 
+                                {user?.subscription_plan?.name === 'Free' 
                                     ? 'Upgrade to a paid plan for more credits and features.'
                                     : 'Your next bill is on the 1st of next month.'
                                 }
@@ -177,41 +157,45 @@ const Billing = () => {
             {/* Subscription Plans */}
             <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                 <h2 className="text-xl font-semibold text-gray-800 mb-6">Available Plans</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                    {plans.map((plan) => (
-                        <div key={plan.id} className={`p-6 rounded-lg border-2 ${getPlanColor(plan.id)} ${plan.id === 'pro' ? 'ring-2 ring-purple-500 ring-opacity-50' : ''}`}>
-                            <div className="flex items-center space-x-2 mb-4">
-                                {getPlanIcon(plan.id)}
-                                <h3 className="text-lg font-semibold text-gray-800">{plan.name}</h3>
+                {status === 'loading' && <p>Loading plans...</p>}
+                {status === 'failed' && <p>Error: {error.message}</p>}
+                {status === 'succeeded' && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {plans.map((plan) => (
+                            <div key={plan.id} className={`p-6 rounded-lg border-2 ${getPlanColor(plan.id)} ${plan.id === 'pro' ? 'ring-2 ring-purple-500 ring-opacity-50' : ''}`}>
+                                <div className="flex items-center space-x-2 mb-4">
+                                    {getPlanIcon(plan.id)}
+                                    <h3 className="text-lg font-semibold text-gray-800">{plan.name}</h3>
+                                </div>
+                                <div className="mb-4">
+                                    <span className="text-3xl font-bold text-gray-800">${plan.price}</span>
+                                    <span className="text-gray-600">/month</span>
+                                </div>
+                                <div className="space-y-2 mb-6">
+                                    {plan.features.map((feature, index) => (
+                                        <div key={index} className="flex items-center space-x-2">
+                                            <CheckCircle className="h-4 w-4 text-green-500" />
+                                            <span className="text-sm text-gray-600">{feature}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                                <button
+                                    onClick={() => handleUpgrade(plan)}
+                                    className={`w-full py-2 px-4 rounded-lg font-semibold transition-all duration-300 ${
+                                        plan.id === 'pro' 
+                                            ? 'bg-purple-600 text-white hover:bg-purple-700' 
+                                            : plan.price === 0
+                                            ? 'bg-gray-400 text-white cursor-not-allowed'
+                                            : 'bg-gray-600 text-white hover:bg-gray-700'
+                                    }`}
+                                    disabled={plan.price === 0}
+                                >
+                                    {plan.price === 0 ? 'Current Plan' : 'Upgrade'}
+                                </button>
                             </div>
-                            <div className="mb-4">
-                                <span className="text-3xl font-bold text-gray-800">${plan.price}</span>
-                                <span className="text-gray-600">/month</span>
-                            </div>
-                            <div className="space-y-2 mb-6">
-                                {plan.features.map((feature, index) => (
-                                    <div key={index} className="flex items-center space-x-2">
-                                        <CheckCircle className="h-4 w-4 text-green-500" />
-                                        <span className="text-sm text-gray-600">{feature}</span>
-                                    </div>
-                                ))}
-                            </div>
-                            <button
-                                onClick={() => handleUpgrade(plan)}
-                                className={`w-full py-2 px-4 rounded-lg font-semibold transition-all duration-300 ${
-                                    plan.id === 'pro' 
-                                        ? 'bg-purple-600 text-white hover:bg-purple-700' 
-                                        : plan.price === 0
-                                        ? 'bg-gray-400 text-white cursor-not-allowed'
-                                        : 'bg-gray-600 text-white hover:bg-gray-700'
-                                }`}
-                                disabled={plan.price === 0}
-                            >
-                                {plan.price === 0 ? 'Current Plan' : 'Upgrade'}
-                            </button>
-                        </div>
-                    ))}
-                </div>
+                        ))}
+                    </div>
+                )}
             </div>
 
             {/* Upgrade Modal */}
@@ -322,7 +306,7 @@ const Billing = () => {
                                 disabled={loading}
                                 className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
                             >
-                                {loading ? 'Processing...' : 'Pay $' + selectedPlan?.price}
+                                {loading ? 'Processing...' : `Pay $${selectedPlan?.price}`}
                             </button>
                         </div>
                     </div>

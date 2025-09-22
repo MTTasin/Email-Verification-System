@@ -11,6 +11,7 @@ import ApiKeys from "./Dashboard/ApiKeys";
 import Billing from "./Dashboard/Billing";
 import Settings from "./Dashboard/Settings";
 import ProtectedRoute from "./Components/ProtectedRoute";
+import ConnectionTest from "./Components/ConnectionTest";
 
 function App() {
   return (
@@ -29,6 +30,7 @@ function App() {
             <Route path="/dashboard/api-keys" element={<ApiKeys />} />
             <Route path="/dashboard/billing" element={<Billing />} />
             <Route path="/dashboard/settings" element={<Settings />} />
+            <Route path="/dashboard/connection-test" element={<ConnectionTest />} />
           </Route>
         </Route>
       </Routes>

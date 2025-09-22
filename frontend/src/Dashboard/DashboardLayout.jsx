@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchUser, logout } from '../redux/authSlice';
 import apiClient from '../API/ApiClient';
 
 // --- Mock Lucide Icons ---
@@ -9,6 +11,7 @@ const UploadCloud = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg
 const KeyRound = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"/><circle cx="16.5" cy="7.5" r=".5"/></svg>;
 const CreditCard = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>;
 const SettingsIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 0 2l-.15.08a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1 0-2l.15-.08a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>;
+const Plug = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22v-5"/><path d="M9 8V2"/><path d="M15 8V2"/><path d="M18 8h2a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M4 16a2 2 0 0 0-2-2v-4a2 2 0 0 0 2-2h2"/><path d="M12 17a5 5 0 0 0-5-5h-1"/><path d="M12 17a5 5 0 0 1 5-5h1"/></svg>;
 const UserCircle = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="10" r="3"/><path d="M7 20.662V19a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v1.662"/></svg>;
 const ChevronDown = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>;
 const MenuIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>;
@@ -33,6 +36,7 @@ const Sidebar = ({ user, isOpen }) => {
         { to: '/dashboard/api-keys', label: 'API Keys', icon: <KeyRound className="h-5 w-5" /> },
         { to: '/dashboard/billing', label: 'Billing', icon: <CreditCard className="h-5 w-5" /> },
         { to: '/dashboard/settings', label: 'Settings', icon: <SettingsIcon className="h-5 w-5" /> },
+        { to: '/dashboard/connection-test', label: 'Connection Test', icon: <Plug className="h-5 w-5" /> },
     ];
 
     return (
@@ -47,7 +51,7 @@ const Sidebar = ({ user, isOpen }) => {
                 </nav>
                 <div className="mt-auto p-4 bg-gray-50 rounded-lg">
                     <p className="text-sm font-medium text-gray-700">Credits Remaining</p>
-                    <p className="text-2xl font-bold text-indigo-600 mt-1">{user.credits_remaining?.toLocaleString() || 0}</p>
+                    <p className="text-2xl font-bold text-indigo-600 mt-1">{user?.credits_remaining?.toLocaleString() || 0}</p>
                 </div>
             </div>
         </aside>
@@ -56,12 +60,11 @@ const Sidebar = ({ user, isOpen }) => {
 
 const TopBar = ({ user, onMenuClick }) => {
     const [dropdownOpen, setDropdownOpen] = useState(false);
+    const dispatch = useDispatch();
     const navigate = useNavigate();
 
     const handleLogout = () => {
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        delete apiClient.defaults.headers.common['Authorization'];
+        dispatch(logout());
         navigate('/login');
     };
 
@@ -75,7 +78,7 @@ const TopBar = ({ user, onMenuClick }) => {
                 <div className="relative">
                     <button onClick={() => setDropdownOpen(!dropdownOpen)} className="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100">
                         <UserCircle className="h-7 w-7 text-gray-600"/>
-                        <span className="hidden sm:inline font-medium text-gray-700">{user.first_name}</span>
+                        <span className="hidden sm:inline font-medium text-gray-700">{user?.first_name}</span>
                         <ChevronDown className={`h-4 w-4 text-gray-500 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}/>
                     </button>
                     {dropdownOpen && (
@@ -92,30 +95,26 @@ const TopBar = ({ user, onMenuClick }) => {
 
 const DashboardLayout = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
-    const [user, setUser] = useState(null);
-    const location = useLocation();
+    const dispatch = useDispatch();
     const navigate = useNavigate();
+    const location = useLocation();
+    const { user, isAuthenticated, status } = useSelector((state) => state.auth);
 
     useEffect(() => {
-        const fetchUser = async () => {
-            try {
-                const response = await apiClient.get('/api/user/profile/');
-                setUser(response.data);
-            } catch (error) {
-                console.error("Failed to fetch user", error);
-                navigate('/login');
-            }
-        };
-
-        fetchUser();
-    }, [navigate]);
+        if (isAuthenticated && !user) {
+            dispatch(fetchUser());
+        }
+        if (!isAuthenticated) {
+            navigate('/login');
+        }
+    }, [dispatch, isAuthenticated, user, navigate]);
 
     useEffect(() => {
         // Close sidebar on navigation on mobile
         setSidebarOpen(false);
     }, [location.pathname]);
 
-    if (!user) {
+    if (status === 'loading' || !user) {
         return <div>Loading...</div>; // Or a proper loader
     }
 

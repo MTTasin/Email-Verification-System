@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { loginSuccess } from '../redux/authSlice';
 import apiClient from '../API/ApiClient';
 import ConnectionTest from '../Components/ConnectionTest';
 
@@ -21,6 +23,7 @@ const GitHubIcon = () => (
 
 export default function LoginPage() {
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const [formData, setFormData] = useState({
         email: '',
         password: ''
@@ -38,16 +41,10 @@ export default function LoginPage() {
         setLoading(true);
         
         try {
-            console.log('Attempting login with:', formData);
             const response = await apiClient.post('/api/auth/jwt/create/', formData);
-            console.log('Login successful:', response.data);
-            localStorage.setItem('access_token', response.data.access);
-            localStorage.setItem('refresh_token', response.data.refresh);
-            apiClient.defaults.headers.common['Authorization'] = `Bearer ${response.data.access}`;
+            dispatch(loginSuccess(response.data));
             navigate('/dashboard');
         } catch (err) {
-            console.error('Login error:', err);
-            console.error('Error response:', err.response);
             setError(err.response?.data || { message: 'An error occurred during login' });
         } finally {
             setLoading(false);

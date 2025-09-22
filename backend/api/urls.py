@@ -1,15 +1,16 @@
 from django.urls import path
 from .views import (
     SingleVerifyView, SingleVerifyResultView, MockBillingView, BulkVerifyView, BulkVerifyResultView, 
-    UserProfileView, DashboardStatsView, APIKeyListView, APIKeyDetailView, 
+    BulkVerificationRequestListView, UserProfileView, DashboardStatsView, APIKeyListView, APIKeyDetailView, 
     StripeCheckoutView, StripeWebhookView, SubscriptionPlansView, TestAuthView, PublicVerifyView
 )
 
 urlpatterns = [
     path('verify/single/', SingleVerifyView.as_view(), name='single-verify'),
     path('results/single/<str:task_id>/', SingleVerifyResultView.as_view(), name='single-verify-result'),
-    path('verify/bulk/<str:filename>/', BulkVerifyView.as_view(), name='bulk-verify'),
+    path('verify/bulk/', BulkVerifyView.as_view(), name='bulk-verify'),
     path('results/bulk/<int:request_id>/', BulkVerifyResultView.as_view(), name='bulk-verify-result'),
+    path('results/bulk/', BulkVerificationRequestListView.as_view(), name='bulk-verify-results-list'),
     path('user/profile/', UserProfileView.as_view(), name='user-profile'),
     path('user/dashboard-stats/', DashboardStatsView.as_view(), name='dashboard-stats'),
     

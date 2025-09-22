@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import apiClient from '../API/ApiClient';
+import { useSelector, useDispatch } from 'react-redux';
+import { fetchApiKeys, createApiKey, revokeApiKey } from '../redux/apiKeySlice';
 
 // --- Mock Lucide Icons ---
 const KeyRound = (props) => <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 18v3c0 .6.4 1 1 1h4v-3h3v-3h2l1.4-1.4a6.5 6.5 0 1 0-4-4Z"/><circle cx="16.5" cy="7.5" r=".5"/></svg>;
@@ -13,25 +14,18 @@ const CodeBlock = ({ code }) => (
 );
 
 const ApiKeys = () => {
-    const [apiKeys, setApiKeys] = useState([]);
+    const dispatch = useDispatch();
+    const { keys, status, error } = useSelector((state) => state.apiKeys);
     const [newApiKey, setNewApiKey] = useState(null);
     const [copied, setCopied] = useState(false);
     const [activeTab, setActiveTab] = useState('curl');
-    const [loading, setLoading] = useState(false);
     const [showNewKeyModal, setShowNewKeyModal] = useState(false);
 
     useEffect(() => {
-        fetchApiKeys();
-    }, []);
-
-    const fetchApiKeys = async () => {
-        try {
-            const response = await apiClient.get('/api/keys/');
-            setApiKeys(response.data);
-        } catch (error) {
-            console.error('Failed to fetch API keys:', error);
+        if (status === 'idle') {
+            dispatch(fetchApiKeys());
         }
-    };
+    }, [status, dispatch]);
 
     const copyToClipboard = (key) => {
         navigator.clipboard.writeText(key);
@@ -39,37 +33,24 @@ const ApiKeys = () => {
         setTimeout(() => setCopied(false), 2000);
     };
     
-    const generateNewKey = async () => {
-        setLoading(true);
-        try {
-            const response = await apiClient.post('/api/keys/', {
-                name: `API Key ${apiKeys.length + 1}`
-            });
-            setNewApiKey(response.data.api_key);
+    const handleGenerateKey = async () => {
+        const resultAction = await dispatch(createApiKey(`API Key ${keys.length + 1}`));
+        if (createApiKey.fulfilled.match(resultAction)) {
+            setNewApiKey(resultAction.payload.api_key);
             setShowNewKeyModal(true);
-            await fetchApiKeys();
-        } catch (error) {
-            console.error('Failed to generate API key:', error);
-        } finally {
-            setLoading(false);
         }
     };
 
-    const deleteApiKey = async (keyId) => {
+    const handleDeleteKey = (keyId) => {
         if (window.confirm('Are you sure you want to delete this API key? This action cannot be undone.')) {
-            try {
-                await apiClient.delete(`/api/keys/${keyId}/`);
-                await fetchApiKeys();
-            } catch (error) {
-                console.error('Failed to delete API key:', error);
-            }
+            dispatch(revokeApiKey(keyId));
         }
     };
 
     const getCodeExamples = (apiKey) => ({
-        curl: `curl -X POST "http://localhost:8000/api/verify/single/" \\
--H "Authorization: Bearer ${apiKey}" \\
--H "Content-Type: application/json" \\
+        curl: `curl -X POST "http://localhost:8000/api/verify/single/" \
+-H "Authorization: Bearer ${apiKey}" \
+-H "Content-Type: application/json" \
 -d '{"email": "contact@example.com"}'`,
         javascript: `fetch('http://localhost:8000/api/verify/single/', {
   method: 'POST',
@@ -108,15 +89,17 @@ print(response.json())`
                         <p className="text-gray-500 text-sm mt-1">Use these keys in your application's backend.</p>
                     </div>
                     <button 
-                        onClick={generateNewKey} 
-                        disabled={loading}
+                        onClick={handleGenerateKey} 
+                        disabled={status === 'loading'}
                         className="mt-3 sm:mt-0 bg-indigo-600 text-white font-semibold px-4 py-2 rounded-lg hover:bg-indigo-700 transition-all duration-300 shadow-sm hover:shadow-md text-sm disabled:opacity-50"
                     >
-                        {loading ? 'Generating...' : 'Generate New Key'}
+                        {status === 'loading' ? 'Generating...' : 'Generate New Key'}
                     </button>
                 </div>
 
-                {apiKeys.length === 0 ? (
+                {status === 'loading' && <p>Loading keys...</p>}
+                {status === 'failed' && <p>Error: {error.message}</p>}
+                {status === 'succeeded' && keys.length === 0 ? (
                     <div className="text-center py-8 text-gray-500">
                         <KeyRound className="h-12 w-12 mx-auto mb-4 text-gray-300" />
                         <p>No API keys found.</p>
@@ -124,7 +107,7 @@ print(response.json())`
                     </div>
                 ) : (
                     <div className="space-y-4">
-                        {apiKeys.map((key) => (
+                        {keys.map((key) => (
                             <div key={key.id} className="flex items-center space-x-2 p-4 bg-gray-50 border border-gray-200 rounded-lg">
                                 <KeyRound className="h-5 w-5 text-gray-400 flex-shrink-0" />
                                 <div className="flex-1">
@@ -136,7 +119,7 @@ print(response.json())`
                                     </div>
                                 </div>
                                 <button 
-                                    onClick={() => deleteApiKey(key.id)}
+                                    onClick={() => handleDeleteKey(key.id)}
                                     className="flex items-center space-x-2 bg-red-100 text-red-700 font-semibold px-3 py-1.5 rounded-md hover:bg-red-200 transition text-sm"
                                 >
                                     <Trash2 className="h-4 w-4" />
@@ -148,7 +131,7 @@ print(response.json())`
                 )}
             </div>
             
-            {apiKeys.length > 0 && (
+            {keys.length > 0 && (
                 <div className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm">
                     <h2 className="text-xl font-semibold text-gray-800 mb-4">API Usage Examples</h2>
                     <div className="border-b border-gray-200 mb-4">

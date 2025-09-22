@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { loginSuccess } from '../redux/authSlice';
 import apiClient from '../API/ApiClient';
 
 // --- Mock Icons (for standalone use) ---
@@ -20,6 +22,7 @@ const GitHubIcon = () => (
 
 export default function SignUpPage() {
     const navigate = useNavigate();
+    const dispatch = useDispatch();
     const [formData, setFormData] = useState({
         first_name: '',
         email: '',
@@ -39,7 +42,9 @@ export default function SignUpPage() {
         
         try {
             await apiClient.post('/api/auth/users/', formData);
-            navigate('/login');
+            const response = await apiClient.post('/api/auth/jwt/create/', { email: formData.email, password: formData.password });
+            dispatch(loginSuccess(response.data));
+            navigate('/dashboard');
         } catch (err) {
             setError(err.response?.data || { message: 'An error occurred' });
         } finally {

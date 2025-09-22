@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import apiClient from '../API/ApiClient';
+import { useSelector, useDispatch } from 'react-redux';
+import { verifyEmail, fetchVerificationResult, reset } from '../redux/singleVerifySlice';
 
 // --- Mock Lucide Icons ---
 const CheckCircle = (props) => (
@@ -15,40 +16,29 @@ const AlertTriangle = (props) => (
 
 const SingleVerify = () => {
     const [email, setEmail] = useState('');
-    const [result, setResult] = useState(null);
-    const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
+    const dispatch = useDispatch();
+    const { result, status, error, taskId } = useSelector((state) => state.singleVerify);
 
-    const pollForResult = async (taskId) => {
-        try {
-            const response = await apiClient.get(`/api/results/single/${taskId}/`);
-            if (response.data.status === 'PENDING') {
-                setTimeout(() => pollForResult(taskId), 2000);
-            } else {
-                setResult(response.data);
-                setIsLoading(false);
-            }
-        } catch (err) {
-            setError(err.response?.data || { message: 'An error occurred while fetching results.' });
-            setIsLoading(false);
+    useEffect(() => {
+        let interval;
+        if (status === 'polling' && taskId) {
+            interval = setInterval(() => {
+                dispatch(fetchVerificationResult(taskId));
+            }, 2000);
         }
-    };
+        return () => clearInterval(interval);
+    }, [status, taskId, dispatch]);
 
-    const handleVerify = async (e) => {
+    const handleVerify = (e) => {
         e.preventDefault();
         if (!email) return;
-        setIsLoading(true);
-        setResult(null);
-        setError(null);
-
-        try {
-            const response = await apiClient.post('/api/verify/single/', { email });
-            pollForResult(response.data.task_id);
-        } catch (err) {
-            setError(err.response?.data || { message: 'An error occurred' });
-            setIsLoading(false);
-        }
+        dispatch(verifyEmail(email));
     };
+
+    const handleReset = () => {
+        setEmail('');
+        dispatch(reset());
+    }
 
     const getResultAppearance = () => {
         if (!result) return {};
@@ -81,20 +71,23 @@ const SingleVerify = () => {
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition text-lg"
                         required
                     />
-                    <button type="submit" disabled={isLoading} className="w-full sm:w-auto bg-indigo-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-indigo-700 transition disabled:bg-indigo-400 disabled:cursor-not-allowed flex items-center justify-center text-lg">
-                        {isLoading ? <span className="loader"></span> : 'Verify'}
+                    <button type="submit" disabled={status === 'loading' || status === 'polling'} className="w-full sm:w-auto bg-indigo-600 text-white font-semibold px-8 py-3 rounded-lg hover:bg-indigo-700 transition disabled:bg-indigo-400 disabled:cursor-not-allowed flex items-center justify-center text-lg">
+                        {status === 'loading' || status === 'polling' ? <span className="loader"></span> : 'Verify'}
+                    </button>
+                    <button type="button" onClick={handleReset} className="w-full sm:w-auto bg-gray-200 text-gray-700 font-semibold px-8 py-3 rounded-lg hover:bg-gray-300 transition flex items-center justify-center text-lg">
+                        Reset
                     </button>
                 </form>
             </div>
 
-            {isLoading && (
+            {(status === 'loading' || status === 'polling') && (
                 <div className="text-center p-10">
                     <div className="loader-lg"></div>
                     <p className="mt-4 text-gray-600 font-medium">Verifying email...</p>
                 </div>
             )}
 
-            {error && (
+            {status === 'failed' && error && (
                 <div className="mt-8 p-4 bg-red-100 text-red-700 rounded-md">
                     {Object.entries(error).map(([key, value]) => (
                         <p key={key}>{`${key}: ${value}`}</p>
@@ -102,7 +95,7 @@ const SingleVerify = () => {
                 </div>
             )}
 
-            {result && (
+            {status === 'succeeded' && result && (
                 <div className="mt-8 bg-white rounded-lg border border-gray-200 shadow-sm">
                     <div className="p-6 border-b border-gray-200">
                         <h2 className="text-xl font-semibold text-gray-800">Verification Result</h2>

@@ -70,7 +70,7 @@ class BulkVerifyView(APIView):
     parser_classes = [parsers.FileUploadParser]
     permission_classes = [IsAuthenticated]
 
-    def post(self, request, filename, format=None):
+    def post(self, request, format=None):
         if 'file' not in request.data:
             return Response({'error': 'No file provided.'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -99,6 +99,13 @@ class BulkVerifyResultView(APIView):
             return Response(serializer.data, status=status.HTTP_200_OK)
         except BulkVerificationRequest.DoesNotExist:
             return Response({'error': 'Bulk request not found.'}, status=status.HTTP_404_NOT_FOUND)
+
+class BulkVerificationRequestListView(generics.ListAPIView):
+    serializer_class = BulkVerificationRequestSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return BulkVerificationRequest.objects.filter(user=self.request.user).order_by('-upload_timestamp')
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserSerializer
